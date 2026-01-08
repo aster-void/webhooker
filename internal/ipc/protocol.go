@@ -9,5 +9,6 @@ type Request struct {
 type Response struct {
 	Type string `json:"type"` // "registered", "webhook", "error"
 	Path string `json:"path,omitempty"`
+	URL  string `json:"url,omitempty"`
 	Data string `json:"data,omitempty"`
 }

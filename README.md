@@ -38,10 +38,11 @@ webhooker
 
 | Env | Default | Description |
 |-----|---------|-------------|
-| `WEBHOOKER_DATA_DIR` | `/var/lib/webhooker` | Base directory for socket and logs |
-| `WEBHOOKER_SOCKET` | `$DATA_DIR/webhooker.sock` | Unix socket path |
+| `WEBHOOKER_DATA_DIR` | `~/.local/state/webhooker` | Base directory for socket and logs |
+| `WEBHOOKER_SOCKET` | `/run/webhooker/webhooker.sock` | Unix socket path |
 | `WEBHOOKER_LOG_DIR` | `$DATA_DIR` | Log directory |
 | `WEBHOOKER_PORT` | `8080` | HTTP listen port |
+| `WEBHOOKER_DOMAIN` | (none) | Public base URL for copyable webhook URLs |
 | `WEBHOOKER_ROUTES` | (none) | Persistent route mapping |
 
 ## Routes
@@ -61,6 +62,13 @@ WEBHOOKER_ROUTES='secret123:github,abc789:stripe' webhooker daemon
 ```sh
 $ webhooker
 listening on /tmp-a1b2c3d4
+```
+
+With `WEBHOOKER_DOMAIN` configured on the daemon:
+
+```sh
+$ webhooker
+listening on https://hooks.example.com/tmp-a1b2c3d4
 ```
 
 - Temporary URL assigned per client
@@ -93,4 +101,27 @@ nix build .#webhooker
 
 ```sh
 nix flake check
+```
+
+## NixOS Module
+
+```nix
+{
+  inputs.webhooker.url = "github:aster-void/webhooker";
+
+  outputs = { nixpkgs, webhooker, ... }: {
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        webhooker.nixosModules.webhooker
+        {
+          services.webhooker = {
+            enable = true;
+            routes.github = "secret123";
+          };
+        }
+      ];
+    };
+  };
+}
 ```

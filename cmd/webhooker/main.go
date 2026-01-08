@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -59,7 +60,7 @@ func runDaemon() {
 	go r.Run()
 
 	// IPC server
-	ipcServer, err := ipc.NewServer(getSocketPath(), r.Register, r.Unregister)
+	ipcServer, err := ipc.NewServer(getSocketPath(), getDomain(), r.Register, r.Unregister)
 	if err != nil {
 		log.Fatalf("failed to create IPC server: %v", err)
 	}
@@ -103,6 +104,15 @@ func getDataDir() string {
 	if dir := os.Getenv("WEBHOOKER_DATA_DIR"); dir != "" {
 		return dir
 	}
+	if os.Getuid() == 0 {
+		return defaultDataDir
+	}
+	if xdg := os.Getenv("XDG_STATE_HOME"); xdg != "" {
+		return xdg + "/webhooker"
+	}
+	if home := os.Getenv("HOME"); home != "" {
+		return home + "/.local/state/webhooker"
+	}
 	return defaultDataDir
 }
 
@@ -117,5 +127,9 @@ func getSocketPath() string {
 	if path := os.Getenv("WEBHOOKER_SOCKET"); path != "" {
 		return path
 	}
-	return getDataDir() + "/webhooker.sock"
+	return "/run/webhooker/webhooker.sock"
+}
+
+func getDomain() string {
+	return strings.TrimSuffix(os.Getenv("WEBHOOKER_DOMAIN"), "/")
 }

@@ -18,11 +18,12 @@ type UnregisterFunc func(path string)
 type Server struct {
 	listener   net.Listener
 	path       string
+	domain     string
 	register   RegisterFunc
 	unregister UnregisterFunc
 }
 
-func NewServer(socketPath string, register RegisterFunc, unregister UnregisterFunc) (*Server, error) {
+func NewServer(socketPath, domain string, register RegisterFunc, unregister UnregisterFunc) (*Server, error) {
 	if socketPath == "" {
 		socketPath = DefaultSocket
 	}
@@ -42,6 +43,7 @@ func NewServer(socketPath string, register RegisterFunc, unregister UnregisterFu
 	return &Server{
 		listener:   listener,
 		path:       socketPath,
+		domain:     domain,
 		register:   register,
 		unregister: unregister,
 	}, nil
@@ -94,7 +96,11 @@ func (s *Server) handle(conn net.Conn) {
 	defer s.unregister(path)
 
 	// Send registered response
-	encoder.Encode(Response{Type: "registered", Path: path})
+	resp := Response{Type: "registered", Path: path}
+	if s.domain != "" {
+		resp.URL = s.domain + path
+	}
+	encoder.Encode(resp)
 
 	// Stream webhooks to client
 	for data := range ch {

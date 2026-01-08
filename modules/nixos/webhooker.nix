@@ -9,12 +9,17 @@ let
   routesStr = lib.concatStringsSep "," (
     lib.mapAttrsToList (name: secret: "${secret}:${name}") cfg.routes
   );
+  defaultPackage = import ../../packages/webhooker.nix { inherit pkgs; };
 in
 {
   options.services.webhooker = {
     enable = lib.mkEnableOption "webhooker webhook receiver";
 
-    package = lib.mkPackageOption pkgs "webhooker" { };
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = defaultPackage;
+      description = "The webhooker package to use.";
+    };
 
     port = lib.mkOption {
       type = lib.types.port;
@@ -43,6 +48,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ cfg.package ];
+
     systemd.services.webhooker = {
       description = "Webhooker webhook receiver";
       wantedBy = [ "multi-user.target" ];
@@ -56,11 +63,12 @@ in
 
       serviceConfig = {
         Type = "simple";
-        ExecStart = lib.getExe cfg.package;
+        ExecStart = "${lib.getExe cfg.package} daemon";
         Restart = "on-failure";
         DynamicUser = true;
         StateDirectory = "webhooker";
         RuntimeDirectory = "webhooker";
+        RuntimeDirectoryMode = "0755";
       };
     };
   };

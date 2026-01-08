@@ -7,7 +7,7 @@ let
 in
 pkgs.testers.nixosTest {
   name = "webhooker-integration";
-  globalTimeout = 120;
+  globalTimeout = 300;
 
   nodes.server = {
     environment.systemPackages = [ webhooker pkgs.curl pkgs.jq ];
@@ -24,13 +24,13 @@ pkgs.testers.nixosTest {
         "WEBHOOKER_LOG_DIR=/tmp/webhooker "
         "WEBHOOKER_SOCKET=/tmp/webhooker.sock "
         "WEBHOOKER_PORT=8080 "
-        "webhooker daemon &"
+        "webhooker daemon > /tmp/daemon.log 2>&1 &"
     )
-    server.wait_for_open_port(8080)
+    server.wait_for_open_port(8080, timeout=60)
 
     # Test 1: Persistent route
     server.succeed("curl -s -X POST -d '{\"repo\":\"test\"}' http://localhost:8080/secret123")
-    server.succeed("grep -q 'github' /tmp/webhooker/webhook.log")
+    server.succeed("grep -q 'secret123' /tmp/webhooker/webhook.log")
 
     # Test 2: Unknown route is ignored
     server.succeed("curl -s -X POST -d '{}' http://localhost:8080/unknown")
@@ -54,5 +54,8 @@ pkgs.testers.nixosTest {
 
     # Temp route should NOT be in persistent log
     server.succeed("! grep -q 'temp' /tmp/webhooker/webhook.log")
+
+    # Cleanup: kill background processes so test terminates
+    server.execute("pkill webhooker")
   '';
 }

@@ -42,7 +42,11 @@ func RunClient(socketPath string) error {
 
 		switch resp.Type {
 		case "registered":
-			fmt.Fprintf(os.Stderr, "listening on %s\n", resp.Path)
+			addr := resp.URL
+			if addr == "" {
+				addr = resp.Path
+			}
+			fmt.Fprintf(os.Stderr, "listening on %s\n", addr)
 		case "webhook":
 			fmt.Print(resp.Data)
 		case "error":

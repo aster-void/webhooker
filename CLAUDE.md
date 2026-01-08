@@ -35,17 +35,18 @@ JSON over Unix socket:
 
 ```
 client → {"type":"register"}
-server → {"type":"registered","path":"/tmp-abc123"}
+server → {"type":"registered","path":"/tmp-abc123","url":"https://example.com/tmp-abc123"}
 server → {"type":"webhook","data":"..."}
 ```
 
 ### Environment Variables
 
 All prefixed with `WEBHOOKER_`:
-- `DATA_DIR` — base directory (default: `/var/lib/webhooker`)
-- `SOCKET` — Unix socket path (default: `$DATA_DIR/webhooker.sock`)
+- `DATA_DIR` — base directory (default: `~/.local/state/webhooker` or `/var/lib/webhooker` for root)
+- `SOCKET` — Unix socket path (default: `/run/webhooker/webhooker.sock`)
 - `LOG_DIR` — log directory (default: `$DATA_DIR`)
 - `PORT` — HTTP port (default: `8080`)
+- `DOMAIN` — public base URL for webhook endpoints (e.g., `https://example.com`)
 - `ROUTES` — persistent routes (format: `secret:name,secret:name`)
 
 ### Security
