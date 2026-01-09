@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 )
 
-const DefaultSocket = "/var/lib/webhooker/webhooker.sock"
-
 type RegisterFunc func(path string, ch chan<- []byte)
 type UnregisterFunc func(path string)
 
@@ -24,10 +22,6 @@ type Server struct {
 }
 
 func NewServer(socketPath, domain string, register RegisterFunc, unregister UnregisterFunc) (*Server, error) {
-	if socketPath == "" {
-		socketPath = DefaultSocket
-	}
-
 	dir := filepath.Dir(socketPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
@@ -37,6 +31,11 @@ func NewServer(socketPath, domain string, register RegisterFunc, unregister Unre
 
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := os.Chmod(socketPath, 0666); err != nil {
+		listener.Close()
 		return nil, err
 	}
 

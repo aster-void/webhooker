@@ -1,9 +1,6 @@
 package router
 
 import (
-	"os"
-	"strings"
-
 	"github.com/aster-void/webhooker/internal/receiver"
 )
 
@@ -17,7 +14,7 @@ type cmd struct {
 type Router struct {
 	in     <-chan receiver.Message
 	cmd    chan cmd
-	routes map[string]chan<- []byte // path -> writer channel
+	routes map[string]chan<- []byte
 }
 
 func New(in <-chan receiver.Message) *Router {
@@ -25,23 +22,6 @@ func New(in <-chan receiver.Message) *Router {
 		in:     in,
 		cmd:    make(chan cmd, 100),
 		routes: make(map[string]chan<- []byte),
-	}
-}
-
-func (r *Router) LoadRoutes(writers ...chan<- []byte) {
-	env := os.Getenv("WEBHOOKER_ROUTES")
-	if env == "" {
-		return
-	}
-
-	for _, pair := range strings.Split(env, ",") {
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) == 2 {
-			secret := strings.TrimSpace(parts[0])
-			if secret != "" {
-				r.routes["/"+secret] = fanout(writers)
-			}
-		}
 	}
 }
 
@@ -78,20 +58,7 @@ func (r *Router) Run() {
 func (r *Router) route(msg receiver.Message) {
 	ch, ok := r.routes[msg.Path]
 	if !ok {
-		return // no matching route, silently drop
+		return
 	}
 	ch <- msg.Data
-}
-
-// fanout creates a channel that writes to multiple channels
-func fanout(chs []chan<- []byte) chan<- []byte {
-	out := make(chan []byte, 100)
-	go func() {
-		for data := range out {
-			for _, ch := range chs {
-				ch <- data
-			}
-		}
-	}()
-	return out
 }

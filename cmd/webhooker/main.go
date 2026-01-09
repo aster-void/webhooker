@@ -11,17 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aster-void/webhooker/internal/file"
 	"github.com/aster-void/webhooker/internal/ipc"
 	"github.com/aster-void/webhooker/internal/receiver"
 	"github.com/aster-void/webhooker/internal/router"
 )
 
 const (
-	readTimeout    = 10 * time.Second
-	writeTimeout   = 5 * time.Second
-	maxHeaderSize  = 8 << 10 // 8KB
-	defaultDataDir = "/var/lib/webhooker"
+	readTimeout   = 10 * time.Second
+	writeTimeout  = 5 * time.Second
+	maxHeaderSize = 8 << 10 // 8KB
 )
 
 func main() {
@@ -29,7 +27,7 @@ func main() {
 		runDaemon()
 		return
 	}
-	if err := ipc.RunClient(getSocketPath()); err != nil {
+	if err := ipc.RunClient(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
@@ -40,26 +38,12 @@ func runDaemon() {
 	if port == "" {
 		port = "8080"
 	}
-	logDir := getLogDir()
 
-	// Channels
 	recvCh := make(chan receiver.Message, 100)
-	fileCh := make(chan []byte, 100)
 
-	// File writer
-	fileWriter, err := file.NewFile(logDir, fileCh)
-	if err != nil {
-		log.Fatalf("failed to create file writer: %v", err)
-	}
-	defer fileWriter.Close()
-	go fileWriter.Run()
-
-	// Router
 	r := router.New(recvCh)
-	r.LoadRoutes(fileCh)
 	go r.Run()
 
-	// IPC server
 	ipcServer, err := ipc.NewServer(getSocketPath(), getDomain(), r.Register, r.Unregister)
 	if err != nil {
 		log.Fatalf("failed to create IPC server: %v", err)
@@ -67,7 +51,6 @@ func runDaemon() {
 	defer ipcServer.Close()
 	go ipcServer.Run()
 
-	// Receiver
 	recv := receiver.New(recvCh)
 
 	srv := &http.Server{
@@ -100,32 +83,12 @@ func runDaemon() {
 	<-done
 }
 
-func getDataDir() string {
-	if dir := os.Getenv("WEBHOOKER_DATA_DIR"); dir != "" {
-		return dir
-	}
-	if os.Getuid() == 0 {
-		return defaultDataDir
-	}
-	if xdg := os.Getenv("XDG_STATE_HOME"); xdg != "" {
-		return xdg + "/webhooker"
-	}
-	if home := os.Getenv("HOME"); home != "" {
-		return home + "/.local/state/webhooker"
-	}
-	return defaultDataDir
-}
-
-func getLogDir() string {
-	if dir := os.Getenv("WEBHOOKER_LOG_DIR"); dir != "" {
-		return dir
-	}
-	return getDataDir()
-}
-
 func getSocketPath() string {
-	if path := os.Getenv("WEBHOOKER_SOCKET"); path != "" {
-		return path
+	if os.Getuid() == 0 {
+		return "/run/webhooker/webhooker.sock"
+	}
+	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
+		return xdg + "/webhooker/webhooker.sock"
 	}
 	return "/run/webhooker/webhooker.sock"
 }

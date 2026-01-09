@@ -6,9 +6,6 @@
 }:
 let
   cfg = config.services.webhooker;
-  routesStr = lib.concatStringsSep "," (
-    lib.mapAttrsToList (name: secret: "${secret}:${name}") cfg.routes
-  );
   defaultPackage = import ../../packages/webhooker.nix { inherit pkgs; };
 in
 {
@@ -27,23 +24,11 @@ in
       description = "HTTP port to listen on.";
     };
 
-    dataDir = lib.mkOption {
-      type = lib.types.path;
-      default = "/var/lib/webhooker";
-      description = "Base directory for data and logs.";
-    };
-
-    routes = lib.mkOption {
-      type = lib.types.attrsOf lib.types.str;
-      default = { };
-      example = {
-        github = "secret123";
-        gitlab = "secret456";
-      };
-      description = ''
-        Persistent routes as name-secret pairs.
-        Format: { name = "secret"; }
-      '';
+    domain = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "https://example.com";
+      description = "Public base URL for webhook endpoints.";
     };
   };
 
@@ -57,8 +42,8 @@ in
 
       environment = {
         WEBHOOKER_PORT = toString cfg.port;
-        WEBHOOKER_DATA_DIR = cfg.dataDir;
-        WEBHOOKER_ROUTES = routesStr;
+      } // lib.optionalAttrs (cfg.domain != null) {
+        WEBHOOKER_DOMAIN = cfg.domain;
       };
 
       serviceConfig = {
@@ -66,7 +51,6 @@ in
         ExecStart = "${lib.getExe cfg.package} daemon";
         Restart = "on-failure";
         DynamicUser = true;
-        StateDirectory = "webhooker";
         RuntimeDirectory = "webhooker";
         RuntimeDirectoryMode = "0755";
       };

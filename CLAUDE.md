@@ -15,9 +15,7 @@ nix flake check
 Channel-based actor model:
 
 ```
-Receiver ──chan──→ Router ──chan──→ File (persistent)
-                      │
-                      └──chan──→ IPC Client (temporary)
+Receiver ──chan──→ Router ──chan──→ IPC Client (ephemeral)
 ```
 
 ### Actors
@@ -26,8 +24,7 @@ Receiver ──chan──→ Router ──chan──→ File (persistent)
 |-------|---------|-------------|
 | Receiver | `internal/receiver` | HTTP handler, body parsing, escaping |
 | Router | `internal/router` | Route matching, dynamic register/unregister |
-| File | `internal/file` | Persistent log writer with rotation |
-| IPC Server | `internal/ipc` | Unix socket, temporary route management |
+| IPC Server | `internal/ipc` | Unix socket, ephemeral route management |
 
 ### IPC Protocol
 
@@ -42,14 +39,13 @@ server → {"type":"webhook","data":"..."}
 ### Environment Variables
 
 All prefixed with `WEBHOOKER_`:
-- `DATA_DIR` — base directory (default: `~/.local/state/webhooker` or `/var/lib/webhooker` for root)
-- `SOCKET` — Unix socket path (default: `/run/webhooker/webhooker.sock`)
-- `LOG_DIR` — log directory (default: `$DATA_DIR`)
 - `PORT` — HTTP port (default: `8080`)
 - `DOMAIN` — public base URL for webhook endpoints (e.g., `https://example.com`)
-- `ROUTES` — persistent routes (format: `secret:name,secret:name`)
+
+Socket path:
+- Server: `/run/webhooker/webhooker.sock` (root) or `$XDG_RUNTIME_DIR/webhooker/webhooker.sock` (user)
+- Client: tries both paths
 
 ### Security
 
 - Unregistered routes silently ignored (no enumeration hints)
-- Temporary routes not written to persistent log
