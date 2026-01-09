@@ -1,11 +1,8 @@
 package receiver
 
 import (
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
-	"time"
 )
 
 const maxBodySize = 1 << 20 // 1MB
@@ -44,34 +41,7 @@ func (r *Receiver) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
-	escaped := escape(body)
-	line := []byte(fmt.Sprintf("%s %s %s %s\n", timestamp, req.Method, req.URL.Path, escaped))
-
-	r.out <- Message{Path: req.URL.Path, Data: line}
+	r.out <- Message{Path: req.URL.Path, Data: body}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func escape(data []byte) string {
-	var b strings.Builder
-	b.Grow(len(data))
-
-	for _, c := range data {
-		switch {
-		case c == '\\':
-			b.WriteString(`\\`)
-		case c == '\n':
-			b.WriteString(`\n`)
-		case c == '\r':
-			b.WriteString(`\r`)
-		case c == '\t':
-			b.WriteString(`\t`)
-		case c < 0x20 || c > 0x7e:
-			fmt.Fprintf(&b, `\x%02x`, c)
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return b.String()
 }
